@@ -24,6 +24,8 @@ class Provider {
                 return provider
             } catch (err) {
                 lastErr = err
+                // Destroy the failed provider to stop its retry logic
+                provider.destroy()
                 continue
             }
         }

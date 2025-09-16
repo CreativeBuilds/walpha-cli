@@ -11,7 +11,7 @@ class Wallet {
     constructor(keyOrPhrase: string) {
         this.key = keyOrPhrase
         try {
-        this.address = keyOrPhrase.startsWith('0x') 
+            this.address = keyOrPhrase.startsWith('0x')
                 ? new ethers.Wallet(keyOrPhrase).address
                 : ethers.Wallet.fromPhrase(keyOrPhrase).address
         } catch (error) {
@@ -37,17 +37,39 @@ class Wallet {
     }
 }
 
-function initWallet(): [Wallet, null] | [null, number] {
-    if (!fs.existsSync('private-key.txt')) return [null, 1]
-    const keyOrPhrase = fs.readFileSync('private-key.txt', 'utf8')
-    if (!keyOrPhrase) {
-        return [null, 2]
+async function initWallet(): Promise<[Wallet, null] | [null, number]> {
+    let [wallet, errorCode] = await (async () => {
+        if (!fs.existsSync('private-key.txt')) return [null, 1]
+        const keyOrPhrase = fs.readFileSync('private-key.txt', 'utf8')
+        if (!keyOrPhrase) {
+            return [null, 2]
+        }
+        try {
+            return [new Wallet(keyOrPhrase), null]
+        } catch (error) {
+            return [null, 3]
+        }
+    })()
+
+    if (errorCode) {
+        switch (errorCode) {
+            case 1:
+                console.log('No private key found, would you like to create a new one? (y/n)')
+                break;
+            case 2:
+                console.error('Private key not found in private-key.txt, please create it and add your private key or passphrase for an EVM compatible wallet')
+                break;
+            case 3:
+                console.error('Error initializing wallet')
+                break;
+        }
+        [wallet, errorCode] = await generateNewWallet()
+        if (errorCode) {
+            return [null, errorCode]
+        }
+        return [wallet!, null]
     }
-    try {
-        return [new Wallet(keyOrPhrase), null]
-    } catch (error) {
-        return [null, 3]
-    }
+    return [wallet!, null]
 }
 
 async function generateNewWallet(): Promise<[Wallet, null] | [null, number]> {
@@ -86,4 +108,4 @@ async function generateNewWallet(): Promise<[Wallet, null] | [null, number]> {
     return [wallet, null]
 }
 
-export { ethers, Wallet, initWallet, generateNewWallet}
+export { ethers, Wallet, initWallet, generateNewWallet }

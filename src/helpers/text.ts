@@ -19,4 +19,12 @@ async function withLoadingText<T>(message: string, fn: () => Promise<T>): Promis
     return result
 }
 
-export { withLoadingText }
+function spacedText(text: string, totalLength: number = 40) {
+    const textLength = text.length
+    const dashesEachSide = Math.max(3, Math.floor((totalLength - textLength - 2) / 2))
+    const leftDashes = '-'.repeat(dashesEachSide)
+    const rightDashes = '-'.repeat(totalLength - textLength - dashesEachSide - 2)
+    console.log(`${leftDashes} ${text} ${rightDashes}`)
+}
+
+export { withLoadingText, spacedText }
