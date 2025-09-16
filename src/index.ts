@@ -4,6 +4,7 @@ import { Command } from 'commander'
 import { balanceCommand } from './commands/balance'
 import { allowedNetuids } from './helpers/netuids'
 import { wrapCommand } from './commands/wrap'
+import { unwrapCommand } from './commands/unwrap'
 
 const program = new Command()
 
@@ -25,12 +26,9 @@ program
     .command('unwrap')
     .alias('u')
     .description('Unwrap Wrapped Alpha tokens back to TAO')
-    .option('--netuid <netuid>', 'Netuid to use')
-    .action((options: { netuid?: string }) => {
-        if (!options.netuid || !allowedNetuids[options.netuid]) { console.error(`Netuid ${options.netuid ?? ''} is not allowed.`); process.exit(1) }
-        // unwrap logic placeholder
-        console.warn('Unwrap command is not implemented yet.')
-    })
+    .option('--netuid [netuid]', 'Netuid to use')
+    .option('--amount [amount]', 'Amount to unwrap')
+    .action(unwrapCommand)
 
 program
     .command('balance')
