@@ -43,6 +43,6 @@ coverage/
 # SpecStory explanation file
 .specstory/*
 
-private-key.txt
+*private-key*
 # SpecStory explanation file
 .specstory/.what-is-this.md
