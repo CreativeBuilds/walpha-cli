@@ -2,6 +2,7 @@ import { ethers } from 'ethers'
 import fs from 'fs'
 import { convertH160ToSS58 } from './helpers/h160toss58'
 import { rl } from './helpers/rl'
+import { Provider } from './provider'
 
 class Wallet {
     private key: string
@@ -21,12 +22,18 @@ class Wallet {
     }
 
     // take a generate wallet and create signer based of json rpc provider
-    public getSigner(provider: ethers.JsonRpcProvider) {
-        return new ethers.Wallet(this.key, provider)
+    public async getSigner(provider: Provider) {
+        let _provider = await provider.get()
+        return new ethers.Wallet(this.key, _provider)
     }
 
     public h160toss58() {
         return convertH160ToSS58(this.address)
+    }
+
+    public async getBalance(provider: Provider) {
+        let _provider = await provider.get()
+        return _provider.getBalance(this.address)
     }
 }
 

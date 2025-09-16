@@ -1,7 +1,7 @@
-const { hexToU8a } = require('@polkadot/util');
-const { blake2AsU8a, encodeAddress } = require('@polkadot/util-crypto');
+import { hexToU8a } from '@polkadot/util';
+import { blake2AsU8a, encodeAddress } from '@polkadot/util-crypto';
 
-function convertH160ToSS58(ethAddress) {
+function convertH160ToSS58(ethAddress: string): string {
     const prefix = 'evm:';
     const prefixBytes = new TextEncoder().encode(prefix);
     const addressBytes = hexToU8a(
