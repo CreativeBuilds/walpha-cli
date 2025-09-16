@@ -19,7 +19,7 @@ async function balanceCommand() {
     console.log('TAO address:', wallet?.h160toss58())
 
     const balance = await withLoadingText('Fetching balance...', () => wallet!.getBalance(provider))
-    if (balance !== undefined) console.log('TAO Balance:', ethers.formatEther(balance))
+    if (balance !== undefined) console.log('TAO Balance:', parseFloat(ethers.formatEther(balance)).toFixed(4))
     if (balance === 0n) {
         console.log(`Your balance is empty! Use your TAO address to send TAO and load your EVM address with funds`)
         // return;
@@ -70,12 +70,13 @@ async function balanceCommand() {
     Object.entries(tokenBalances).forEach(([token, balances]) => {
         const row = [token, ...networks.map(network => {
             const balance = balances[network]
-            return balance ? ethers.formatUnits(balance.balance, balance.decimals) : '0.0'
+            return balance ? parseFloat(ethers.formatUnits(balance.balance, balance.decimals)).toFixed(4) : '0'
         })]
         table.push(row)
     })
 
     console.log(table.toString())
+    process.exit(0)
 }
 
 export { balanceCommand }

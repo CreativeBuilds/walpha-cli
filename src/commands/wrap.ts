@@ -1,39 +1,94 @@
 import { withLoadingText, spacedText } from "../helpers/text";
-import { allowedNetuids } from "../helpers/netuids";
-import { getErc20BalancesWithDelay } from "../helpers/balances";
+import { allowedNetuids, isValidNetuid } from "../helpers/netuids";
 import { Provider } from "../provider";
-import { initWallet, generateNewWallet, ethers } from "../wallet";
+import { initWallet, ethers } from "../wallet";
+import { rl } from "../helpers/rl";
+import { getTaoContractAddress, loadWrapContract } from "../helpers/contract";
 
-async function balanceCommand() {
+
+async function wrapCommand(options: { netuid?: string, amount?: string }) {
     // balance logic placeholder
     let [wallet, errorCode] = await initWallet()
     if (errorCode) {
         process.exit(1)
     }
-    
+
     let provider = new Provider('tao')
-    spacedText("Wallet Info")
-    console.log('Wallet address:', wallet?.address)
-    console.log('TAO address:', wallet?.h160toss58())
 
-    const balance = await withLoadingText('Fetching balance...', () => wallet!.getBalance(provider))
-    if (balance !== undefined) console.log('TAO Balance:', ethers.formatEther(balance))
-    if (balance === 0n) {
-        console.log(`Your balance is empty! Use your TAO address to send TAO and load your EVM address with funds`)
-        // return;
-    } else if (balance < BigInt(1e16)) {
-        console.log(`Your balance is low on funds use your TAO address to send TAO and load your EVM address with funds`)
+    let netuid = options.netuid;
+    let answer_netuid = await (async () => {
+        if (!isValidNetuid(netuid ?? '')) {
+            const subnets = Object.keys(allowedNetuids)
+            console.log('Please pick a subnet from the following list or use --netuid [netuid]:')
+            subnets.forEach((subnet, idx) => console.log(`${idx + 1}: ${subnet}`))
+            const answer: string = await new Promise(resolve => rl.question('', resolve))
+            let idx = parseInt(answer) - 1
+            if (!isNaN(idx) && idx >= 0 && idx < subnets.length) { netuid = subnets[idx]; return netuid }
+            if (subnets.includes(answer)) { netuid = answer; return netuid }
+            console.error('Invalid selection.'); process.exit(1)
+        }
+        return netuid
+    })()
+
+    const [taoAddress, taoError] = getTaoContractAddress(answer_netuid!)
+    if (taoError) {
+        console.error(taoError)
+        process.exit(1)
     }
-    
-    const erc20Addresses = Object.values(allowedNetuids)
-    const rpcProvider = await provider.get()
-    const erc20Balances = await getErc20BalancesWithDelay(erc20Addresses, wallet!.address, 350, rpcProvider)
-    
-    spacedText(`Wrapped Token Balance${erc20Addresses.length > 1 ? 's' : ''}`)
 
-    erc20Balances.sort((a, b) => b.balance - a.balance).forEach(({ symbol, balance, decimals }: { symbol: string, balance: bigint, decimals: number }) => {
-        if (balance >= 0n) console.log(`${symbol} Balance:`, ethers.formatUnits(balance, decimals))
+    const [contract, contractError] = await loadWrapContract(taoAddress, provider, wallet!)
+    if (contractError || !contract) {
+        console.error(contractError || 'Failed to load contract')
+        process.exit(1)
+    }
+
+    let balance = await withLoadingText('Fetching balance...', () => wallet!.getBalance(provider))
+
+    console.log('')
+    spacedText("Balance")
+    console.log('TAO Balance:', ethers.formatEther(balance), '\n')
+
+    let amount = options.amount;
+    let answer_amount = await (async (): Promise<string> => {
+        if (!amount) {
+            amount = await getAnswerAmount(balance)
+            return amount
+        }
+        return amount
+    })()
+
+    let answer_amount_wei = ethers.parseEther(answer_amount)
+
+    const tx = await withLoadingText('Wrapping...', () => contract.depositTao(answer_amount_wei, { value: answer_amount_wei }).then(tx => tx.wait())).catch(error => {
+        console.error('Error wrapping:', error)
+        process.exit(1)
     })
+    console.log('\nTransaction hash:', tx.hash)
+    console.log(`View on explorer: https://evm.taostats.io/tx/${tx.hash}`)
+
+    balance = await withLoadingText('Fetching balance...', () => wallet!.getBalance(provider))
+    
+    console.log('')
+    spacedText("New Balance")
+    console.log('TAO Balance:', ethers.formatEther(balance), '\n')
 }
 
-export { balanceCommand }
+async function getAnswerAmount(balance: bigint): Promise<string> {
+    console.log('How much TAO do you want to wrap? Or use --amount [amount]:')
+    const answer: string = await new Promise(resolve => rl.question('', resolve))
+    if (isNaN(Number(answer))) {
+        console.error('Invalid amount.'); return getAnswerAmount(balance)
+    } else if (Number(answer) > Number(ethers.formatEther(balance))) {
+        console.log('')
+        console.error('Insufficient balance. Either change the amount or send more TAO to your wallet.')
+        const bal = Number(ethers.formatEther(balance))
+        const amt = Number(answer)
+        const diff = Math.abs(bal - amt).toFixed(4)
+        console.log(`Your balance is ${bal.toFixed(4)} TAO which is ${diff} TAO less than the amount you want to wrap.`)
+        console.log('')
+        return getAnswerAmount(balance)
+    }
+    return answer
+}
+
+export { wrapCommand }

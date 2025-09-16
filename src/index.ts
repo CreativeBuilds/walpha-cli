@@ -2,23 +2,8 @@
 
 import { Command } from 'commander'
 import { balanceCommand } from './commands/balance'
-
-const allowedNetuids: Record<string, boolean> = {
-    '1': true,
-    '2': true,
-    '3': true
-}
-
-const allowedNetworks: Record<string, { psudeonyms: string[], rpcUrls: string[] }> = {
-    'eth': {
-        psudeonyms: ['ethereum', 'eth'],
-        rpcUrls: ['https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID']
-    },
-    'tao': {
-        psudeonyms: ['subtensor', 'bittensor', 'tao'],
-        rpcUrls: ['https://lite.chain.opentensor.ai']
-    }
-}
+import { allowedNetuids } from './helpers/netuids'
+import { wrapCommand } from './commands/wrap'
 
 const program = new Command()
 
@@ -31,14 +16,10 @@ program
     .command('wrap')
     .alias('w')
     .description('Acquire Wrapped Alpha tokens with TAO')
-    .option('--netuid <netuid>', 'Netuid to use')
-    .option('--network <network>', 'Network to use')
-    .action((options: { netuid?: string }) => {
-        if (!options.netuid || !allowedNetuids[options.netuid]) { console.error(`Netuid ${options.netuid ?? ''} is not allowed.`); process.exit(1) }
-
-        // wrap logic placeholder
-        console.warn('Wrap command is not implemented yet.')
-    })
+    .option('--netuid [netuid]', 'Netuid to use')
+    .option('--network [network]', 'Network to use')
+    .option('--amount [amount]', 'Amount to wrap')
+    .action(wrapCommand)
 
 program
     .command('unwrap')
