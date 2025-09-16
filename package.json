@@ -1,0 +1,44 @@
+{
+  "name": "walpha-cli",
+  "version": "1.0.0",
+  "description": "A basic TypeScript CLI application",
+  "main": "dist/index.js",
+  "bin": {
+    "walpha": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "clean": "rm -rf dist",
+    "build:exe": "npm run build && pkg dist/index.js --targets node18-macos-x64,node18-win-x64 --output dist/walpha",
+    "build:mac": "npm run build && pkg dist/index.js --targets node18-macos-x64 --output dist/walpha-mac",
+    "build:win": "npm run build && pkg dist/index.js --targets node18-win-x64 --output dist/walpha-win.exe"
+  },
+  "keywords": [
+    "cli",
+    "typescript",
+    "node"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "ethers": "^6.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "pkg": "^5.8.1",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0"
+  },
+  "pkg": {
+    "assets": [
+      "package.json"
+    ],
+    "targets": [
+      "node18-macos-x64",
+      "node18-win-x64"
+    ]
+  }
+}
