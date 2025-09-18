@@ -3,8 +3,9 @@ import { allowedNetuids, isValidNetuid } from "../helpers/netuids";
 import { Provider } from "../provider";
 import { initWallet, ethers } from "../wallet";
 import { rl } from "../helpers/rl";
-import { getTaoContractAddress, loadWrapContract } from "../helpers/contract";
+import { Chain, getContractAddress, loadWrapContract } from "../helpers/contract";
 import { getErc20BalancesWithDelay } from "../helpers/balances";
+import { JsonRpcProvider } from "ethers";
 
 async function unwrapCommand(options: { netuid?: string, amount?: string }) {
     let [wallet, errorCode] = await initWallet()
@@ -12,7 +13,7 @@ async function unwrapCommand(options: { netuid?: string, amount?: string }) {
         process.exit(1)
     }
 
-    let provider = new Provider('tao')
+    let provider = new Provider(Chain.TAO)
 
     let netuid = options.netuid;
     let answer_netuid = await (async () => {
@@ -29,13 +30,13 @@ async function unwrapCommand(options: { netuid?: string, amount?: string }) {
         return netuid
     })()
 
-    const [taoAddress, taoError] = getTaoContractAddress(answer_netuid!)
+    const [taoAddress, taoError] = getContractAddress(answer_netuid!)
     if (taoError) {
         console.error(taoError)
         process.exit(1)
     }
 
-    const [contract, contractError] = await loadWrapContract(taoAddress, provider, wallet!)
+    const [contract, contractError] = await loadWrapContract(taoAddress, provider as Provider, wallet!, Chain.TAO)
     if (contractError || !contract) {
         console.error(contractError || 'Failed to load contract')
         process.exit(1)
@@ -44,7 +45,7 @@ async function unwrapCommand(options: { netuid?: string, amount?: string }) {
     // Get wrapped token balance
     const wrappedBalance = await withLoadingText('Fetching wrapped token balance...', async () => {
         const rpcProvider = await provider.get()
-        const balances = await getErc20BalancesWithDelay([taoAddress], wallet!.address, 350, rpcProvider)
+        const balances = await getErc20BalancesWithDelay([taoAddress], wallet!.address, 350, rpcProvider as JsonRpcProvider)
         return balances.length > 0 ? balances[0].balance : 0n
     })
 
@@ -95,13 +96,14 @@ async function unwrapCommand(options: { netuid?: string, amount?: string }) {
     // Get updated wrapped token balance
     const newWrappedBalance = await withLoadingText('Fetching updated wrapped token balance...', async () => {
         const rpcProvider = await provider.get()
-        const balances = await getErc20BalancesWithDelay([taoAddress], wallet!.address, 350, rpcProvider)
+        const balances = await getErc20BalancesWithDelay([taoAddress], wallet!.address, 350, rpcProvider as JsonRpcProvider)
         return balances.length > 0 ? balances[0].balance : 0n
     })
     
     console.log('')
     spacedText("New Wrapped Token Balance")
     console.log(`wSN${answer_netuid} Balance:`, ethers.formatUnits(newWrappedBalance, 9), '\n')
+    process.exit(0)
 }
 
 async function getAnswerAmount(wrappedBalance: bigint): Promise<string> {

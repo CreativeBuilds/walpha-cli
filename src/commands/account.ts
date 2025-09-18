@@ -5,7 +5,7 @@ import { Provider } from "../provider";
 import { initWallet, generateNewWallet, ethers } from "../wallet";
 import Table from "cli-table3";
 
-async function balanceCommand() {
+async function accountCommand() {
     // balance logic placeholder
     let [wallet, errorCode] = await initWallet()
     if (errorCode) {
@@ -79,4 +79,4 @@ async function balanceCommand() {
     process.exit(0)
 }
 
-export { balanceCommand }
+export { accountCommand as balanceCommand }

@@ -3,10 +3,11 @@ import { allowedNetuids, isValidNetuid } from "../helpers/netuids";
 import { Provider } from "../provider";
 import { initWallet, ethers } from "../wallet";
 import { rl } from "../helpers/rl";
-import { getTaoContractAddress, loadWrapContract } from "../helpers/contract";
+import { getContractAddress, loadWrapContract } from "../helpers/contract";
+import { Chain } from "../helpers/contract";
 
 
-async function wrapCommand(options: { netuid?: string, amount?: string }) {
+async function wrapCommand(options: { netuid?: string, amount?: string, followUp?: { command: any, args: any } }) {
     // balance logic placeholder
     let [wallet, errorCode] = await initWallet()
     if (errorCode) {
@@ -30,13 +31,13 @@ async function wrapCommand(options: { netuid?: string, amount?: string }) {
         return netuid
     })()
 
-    const [taoAddress, taoError] = getTaoContractAddress(answer_netuid!)
+    const [taoAddress, taoError] = getContractAddress(answer_netuid!)
     if (taoError) {
         console.error(taoError)
         process.exit(1)
     }
 
-    const [contract, contractError] = await loadWrapContract(taoAddress, provider, wallet!)
+    const [contract, contractError] = await loadWrapContract(taoAddress, provider, wallet!, Chain.TAO)
     if (contractError || !contract) {
         console.error(contractError || 'Failed to load contract')
         process.exit(1)
@@ -71,6 +72,12 @@ async function wrapCommand(options: { netuid?: string, amount?: string }) {
     console.log('')
     spacedText("New Balance")
     console.log('TAO Balance:', ethers.formatEther(balance), '\n')
+
+    if (options.followUp) {
+        options.followUp.command(options.followUp.args)
+    } else {
+        process.exit(0)
+    }
 }
 
 async function getAnswerAmount(balance: bigint): Promise<string> {

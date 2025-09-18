@@ -2,7 +2,8 @@ async function withLoadingText<T>(message: string, fn: () => Promise<T>): Promis
     let loading = true
     const loadingIcons = ['|', '/', '-', '\\']
     let iconIdx = 0
-    process.stdout.write(message + ' ')
+    const fullMessage = message.trim() + ' '
+    process.stdout.write(fullMessage)
     const loadingInterval = setInterval(() => {
         if (!loading) return
         process.stdout.write('\x1b[1D' + loadingIcons[iconIdx])

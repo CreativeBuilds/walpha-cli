@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander'
-import { balanceCommand } from './commands/balance'
-import { allowedNetuids } from './helpers/netuids'
+import { balanceCommand } from './commands/account'
 import { wrapCommand } from './commands/wrap'
 import { unwrapCommand } from './commands/unwrap'
+import { bridgeCommand } from './commands/bridge'
 
 const program = new Command()
 
@@ -13,6 +13,23 @@ program
     .version('1.0.0')
     .description('A CLI interface for Wrapped Alpha')
 
+program
+    .command('account')
+    .alias('a')
+    .description('Check account information')
+    .action(balanceCommand)
+
+
+program
+    .command('bridge')
+    .alias('b')
+    .description('Bridge Wrapped Alpha tokens between networks')
+    .option('--netuid [netuid]', 'Netuid to use')
+    .option('--fromChain [fromChain]', 'From chain to use')
+    .option('--toChain [toChain]', 'To chain to use')
+    .option('--amount [amount]', 'Amount to bridge')
+    .action(bridgeCommand)
+    
 program
     .command('wrap')
     .alias('w')
@@ -30,12 +47,7 @@ program
     .option('--amount [amount]', 'Amount to unwrap')
     .action(unwrapCommand)
 
-program
-    .command('balance')
-    .alias('bal')
-    .alias('b')
-    .description('Check balance of Wrapped Alpha tokens')
-    .action(balanceCommand)
+
 
 
 
