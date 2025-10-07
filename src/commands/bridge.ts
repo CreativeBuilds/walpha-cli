@@ -1,4 +1,4 @@
-import { withLoadingText, spacedText } from "../helpers/text";
+import { withLoadingText, spacedText, withNoSpinner } from "../helpers/text";
 import { allowedNetuids } from "../helpers/netuids";
 import { getErc20BalancesWithDelay } from "../helpers/balances";
 import { Provider } from "../provider";
@@ -264,7 +264,7 @@ async function bridgeCommand({ netuid, fromChain, toChain }: { netuid?: string, 
 
     console.log(`Track tx on LayerZero Scan: https://layerzeroscan.com/tx/${tx.hash}`)
 
-    const [lzResult, lzErr] = await withLoadingText('Waiting for LayerZero tx, this may take a minute...', () => pollLayerZeroTxStatus(tx.hash))
+    const [lzResult, lzErr] = await withNoSpinner('Waiting for LayerZero tx, this may take a minute...', () => pollLayerZeroTxStatus(tx.hash))
     if (lzErr) {
         console.error('LayerZero status polling failed:', lzErr)
         process.exit(1)
@@ -279,6 +279,7 @@ async function bridgeCommand({ netuid, fromChain, toChain }: { netuid?: string, 
         console.log(`LayerZero Scan: https://layerzeroscan.com/tx/${tx.hash}`)
     } else {
         console.log('Bridged successfully!')
+        await import('./account').then(mod => mod.balanceCommand()).catch(err => { console.error('Failed to run balance command:', err); process.exit(1) })
     }
     process.exit(0)
 

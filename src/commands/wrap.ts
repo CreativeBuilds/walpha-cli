@@ -67,15 +67,12 @@ async function wrapCommand(options: { netuid?: string, amount?: string, followUp
     console.log('\nTransaction hash:', tx.hash)
     console.log(`View on explorer: https://evm.taostats.io/tx/${tx.hash}`)
 
-    balance = await withLoadingText('Fetching balance...', () => wallet!.getBalance(provider))
-    
     console.log('')
-    spacedText("New Balance")
-    console.log('TAO Balance:', ethers.formatEther(balance), '\n')
 
     if (options.followUp) {
         options.followUp.command(options.followUp.args)
     } else {
+        await import('./account').then(mod => mod.balanceCommand()).catch(err => { console.error('Failed to run balance command:', err); process.exit(1) })
         process.exit(0)
     }
 }

@@ -20,6 +20,17 @@ async function withLoadingText<T>(message: string, fn: () => Promise<T>): Promis
     return result
 }
 
+async function withNoSpinner<T>(message: string, fn: () => Promise<T>): Promise<T> {
+    process.stdout.write(message.trim() + ' ')
+    let result: T
+    try {
+        result = await fn()
+    } finally {
+        process.stdout.write('\r\x1b[K')
+    }
+    return result
+}
+
 function spacedText(text: string, totalLength: number = 40) {
     const textLength = text.length
     const dashesEachSide = Math.max(3, Math.floor((totalLength - textLength - 2) / 2))
@@ -28,4 +39,4 @@ function spacedText(text: string, totalLength: number = 40) {
     console.log(`${leftDashes} ${text} ${rightDashes}`)
 }
 
-export { withLoadingText, spacedText }
+export { withLoadingText, spacedText, withNoSpinner }
