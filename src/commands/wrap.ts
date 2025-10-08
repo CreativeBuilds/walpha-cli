@@ -2,7 +2,7 @@ import { withLoadingText, spacedText } from "../helpers/text";
 import { allowedNetuids, isValidNetuid } from "../helpers/netuids";
 import { Provider } from "../provider";
 import { initWallet, ethers } from "../wallet";
-import { rl } from "../helpers/rl";
+import { createReadlineInterface } from "../helpers/rl";
 import { getContractAddress, loadWrapContract } from "../helpers/contract";
 import { Chain } from "../helpers/contract";
 
@@ -19,14 +19,20 @@ async function wrapCommand(options: { netuid?: string, amount?: string, followUp
     let netuid = options.netuid;
     let answer_netuid = await (async () => {
         if (!isValidNetuid(netuid ?? '')) {
-            const subnets = Object.keys(allowedNetuids)
-            console.log('Please pick a subnet from the following list or use --netuid [netuid]:')
-            subnets.forEach((subnet, idx) => console.log(`${idx + 1}: ${subnet}`))
-            const answer: string = await new Promise(resolve => rl.question('', resolve))
-            let idx = parseInt(answer) - 1
-            if (!isNaN(idx) && idx >= 0 && idx < subnets.length) { netuid = subnets[idx]; return netuid }
-            if (subnets.includes(answer)) { netuid = answer; return netuid }
-            console.error('Invalid selection.'); process.exit(1)
+            const rl = createReadlineInterface()
+            try {
+                const subnets = Object.keys(allowedNetuids)
+                console.log('Please pick a subnet from the following list or use --netuid [netuid]:')
+                subnets.forEach((subnet, idx) => console.log(`${idx + 1}: ${subnet}`))
+                const answer: string = await new Promise(resolve => rl.question('', resolve))
+                let idx = parseInt(answer) - 1
+                if (!isNaN(idx) && idx >= 0 && idx < subnets.length) { netuid = subnets[idx]; rl.close(); return netuid }
+                if (subnets.includes(answer)) { netuid = answer; rl.close(); return netuid }
+                console.error('Invalid selection.'); rl.close(); process.exit(1)
+            } catch (error) {
+                rl.close()
+                throw error
+            }
         }
         return netuid
     })()
@@ -78,21 +84,29 @@ async function wrapCommand(options: { netuid?: string, amount?: string, followUp
 }
 
 async function getAnswerAmount(balance: bigint): Promise<string> {
-    console.log('How much TAO do you want to wrap? Or use --amount [amount]:')
-    const answer: string = await new Promise(resolve => rl.question('', resolve))
-    if (isNaN(Number(answer))) {
-        console.error('Invalid amount.'); return getAnswerAmount(balance)
-    } else if (Number(answer) > Number(ethers.formatEther(balance))) {
-        console.log('')
-        console.error('Insufficient balance. Either change the amount or send more TAO to your wallet.')
-        const bal = Number(ethers.formatEther(balance))
-        const amt = Number(answer)
-        const diff = Math.abs(bal - amt).toFixed(4)
-        console.log(`Your balance is ${bal.toFixed(4)} TAO which is ${diff} TAO less than the amount you want to wrap.`)
-        console.log('')
-        return getAnswerAmount(balance)
+    const rl = createReadlineInterface()
+    try {
+        console.log('How much TAO do you want to wrap? Or use --amount [amount]:')
+        const answer: string = await new Promise(resolve => rl.question('', resolve))
+        rl.close()
+
+        if (isNaN(Number(answer))) {
+            console.error('Invalid amount.'); return getAnswerAmount(balance)
+        } else if (Number(answer) > Number(ethers.formatEther(balance))) {
+            console.log('')
+            console.error('Insufficient balance. Either change the amount or send more TAO to your wallet.')
+            const bal = Number(ethers.formatEther(balance))
+            const amt = Number(answer)
+            const diff = Math.abs(bal - amt).toFixed(4)
+            console.log(`Your balance is ${bal.toFixed(4)} TAO which is ${diff} TAO less than the amount you want to wrap.`)
+            console.log('')
+            return getAnswerAmount(balance)
+        }
+        return answer
+    } catch (error) {
+        rl.close()
+        throw error
     }
-    return answer
 }
 
 export { wrapCommand }

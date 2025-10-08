@@ -2,7 +2,7 @@ import { withLoadingText, spacedText } from "../helpers/text";
 import { allowedNetuids, isValidNetuid } from "../helpers/netuids";
 import { Provider } from "../provider";
 import { initWallet, ethers } from "../wallet";
-import { rl } from "../helpers/rl";
+import { createReadlineInterface } from "../helpers/rl";
 import { Chain, getContractAddress, loadWrapContract } from "../helpers/contract";
 import { getErc20BalancesWithDelay } from "../helpers/balances";
 import { JsonRpcProvider } from "ethers";
@@ -18,14 +18,20 @@ async function unwrapCommand(options: { netuid?: string, amount?: string }) {
     let netuid = options.netuid;
     let answer_netuid = await (async () => {
         if (!isValidNetuid(netuid ?? '')) {
-            const subnets = Object.keys(allowedNetuids)
-            console.log('Please pick a subnet from the following list or use --netuid [netuid]:')
-            subnets.forEach((subnet, idx) => console.log(`${idx + 1}: ${subnet}`))
-            const answer: string = await new Promise(resolve => rl.question('', resolve))
-            let idx = parseInt(answer) - 1
-            if (!isNaN(idx) && idx >= 0 && idx < subnets.length) { netuid = subnets[idx]; return netuid }
-            if (subnets.includes(answer)) { netuid = answer; return netuid }
-            console.error('Invalid selection.'); process.exit(1)
+            const rl = createReadlineInterface()
+            try {
+                const subnets = Object.keys(allowedNetuids)
+                console.log('Please pick a subnet from the following list or use --netuid [netuid]:')
+                subnets.forEach((subnet, idx) => console.log(`${idx + 1}: ${subnet}`))
+                const answer: string = await new Promise(resolve => rl.question('', resolve))
+                let idx = parseInt(answer) - 1
+                if (!isNaN(idx) && idx >= 0 && idx < subnets.length) { netuid = subnets[idx]; rl.close(); return netuid }
+                if (subnets.includes(answer)) { netuid = answer; rl.close(); return netuid }
+                console.error('Invalid selection.'); rl.close(); process.exit(1)
+            } catch (error) {
+                rl.close()
+                throw error
+            }
         }
         return netuid
     })()
@@ -107,27 +113,34 @@ async function unwrapCommand(options: { netuid?: string, amount?: string }) {
 }
 
 async function getAnswerAmount(wrappedBalance: bigint): Promise<string> {
-    console.log('How much wrapped token do you want to unwrap? (leave blank for max) Or use --amount [amount]:')
-    const answer: string = await new Promise(resolve => rl.question('', resolve))
-    
-    // If empty string, return it to trigger max balance logic
-    if (answer === '') {
+    const rl = createReadlineInterface()
+    try {
+        console.log('How much wrapped token do you want to unwrap? (leave blank for max) Or use --amount [amount]:')
+        const answer: string = await new Promise(resolve => rl.question('', resolve))
+        rl.close()
+
+        // If empty string, return it to trigger max balance logic
+        if (answer === '') {
+            return answer
+        }
+
+        if (isNaN(Number(answer))) {
+            console.error('Invalid amount.'); return getAnswerAmount(wrappedBalance)
+        } else if (Number(answer) > Number(ethers.formatUnits(wrappedBalance, 9))) {
+            console.log('')
+            console.error('Insufficient wrapped token balance. Either change the amount or wrap more TAO first.')
+            const bal = Number(ethers.formatUnits(wrappedBalance, 9))
+            const amt = Number(answer)
+            const diff = Math.abs(bal - amt).toFixed(4)
+            console.log(`Your wrapped balance is ${bal.toFixed(4)} which is ${diff} less than the amount you want to unwrap.`)
+            console.log('')
+            return getAnswerAmount(wrappedBalance)
+        }
         return answer
+    } catch (error) {
+        rl.close()
+        throw error
     }
-    
-    if (isNaN(Number(answer))) {
-        console.error('Invalid amount.'); return getAnswerAmount(wrappedBalance)
-    } else if (Number(answer) > Number(ethers.formatUnits(wrappedBalance, 9))) {
-        console.log('')
-        console.error('Insufficient wrapped token balance. Either change the amount or wrap more TAO first.')
-        const bal = Number(ethers.formatUnits(wrappedBalance, 9))
-        const amt = Number(answer)
-        const diff = Math.abs(bal - amt).toFixed(4)
-        console.log(`Your wrapped balance is ${bal.toFixed(4)} which is ${diff} less than the amount you want to unwrap.`)
-        console.log('')
-        return getAnswerAmount(wrappedBalance)
-    }
-    return answer
 }
 
 export { unwrapCommand }

@@ -10,10 +10,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
-    "clean": "rm -rf dist",
-    "build:exe": "npm run build && pkg dist/index.js --targets node18-macos-x64,node18-win-x64 --output dist/walpha",
-    "build:mac": "npm run build && pkg dist/index.js --targets node18-macos-x64 --output dist/walpha-mac",
-    "build:win": "npm run build && pkg dist/index.js --targets node18-win-x64 --output dist/walpha-win.exe"
+    "cli": "bun src/index.ts",
+    "test": "bun test"
   },
   "keywords": [
     "cli",

@@ -5,6 +5,7 @@ import { balanceCommand } from './commands/account'
 import { wrapCommand } from './commands/wrap'
 import { unwrapCommand } from './commands/unwrap'
 import { bridgeCommand } from './commands/bridge'
+import { unlockCommand } from './commands/unlock'
 
 const program = new Command()
 
@@ -47,9 +48,11 @@ program
     .option('--amount [amount]', 'Amount to unwrap')
     .action(unwrapCommand)
 
-
-
-
+program
+    .command('unlock')
+    .alias('ul')
+    .description('Display the decrypted private key or seed phrase')
+    .action(unlockCommand)
 
 
 program.parse(process.argv)

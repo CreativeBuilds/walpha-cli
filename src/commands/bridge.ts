@@ -4,7 +4,7 @@ import { getErc20BalancesWithDelay } from "../helpers/balances";
 import { Provider } from "../provider";
 import { initWallet, ethers } from "../wallet";
 import Table from "cli-table3";
-import { rl } from "../helpers/rl";
+import { createReadlineInterface } from "../helpers/rl";
 import { wrapCommand } from "./wrap";
 import { eids, isValidChain } from "../helpers/eids";
 import { getContractAddress, loadWrapContract } from "../helpers/contract";
@@ -120,22 +120,30 @@ async function bridgeCommand({ netuid, fromChain, toChain }: { netuid?: string, 
     spacedText("Wrapped Token Balances")
 
     if (Object.keys(tokenBalances).length === 0) {
-        console.log("No wrapped token balances found")
-        console.log('Would you like to convert TAO to wrapped tokens first? (y/n)')
-        const answer = await new Promise(resolve => rl.question('', resolve))
-        if (answer === 'y') {
-            console.log('')
-            wrapCommand({
-                netuid: netuid, followUp: {
-                    command: bridgeCommand,
-                    args: { netuid, fromChain, toChain }
-                }
-            })
-        } else {
-            console.log('')
-            process.exit(0)
+        const rl = createReadlineInterface()
+        try {
+            console.log("No wrapped token balances found")
+            console.log('Would you like to convert TAO to wrapped tokens first? (y/n)')
+            const answer = await new Promise(resolve => rl.question('', resolve))
+            rl.close()
+
+            if (answer === 'y') {
+                console.log('')
+                wrapCommand({
+                    netuid: netuid, followUp: {
+                        command: bridgeCommand,
+                        args: { netuid, fromChain, toChain }
+                    }
+                })
+            } else {
+                console.log('')
+                process.exit(0)
+            }
+            return
+        } catch (error) {
+            rl.close()
+            throw error
         }
-        return
     }
 
     // Create table
@@ -174,39 +182,52 @@ async function bridgeCommand({ netuid, fromChain, toChain }: { netuid?: string, 
     }
 
     // Get amount to bridge
-    console.log('')
-    console.log(`Available balance: ${parseFloat(ethers.formatUnits(tokenBalance.balance, tokenBalance.decimals)).toFixed(4)} ${selectedToken}`)
-    console.log('How much do you want to bridge? (enter amount or "all" for full balance):')
-    const amountAnswer: string = await new Promise(resolve => rl.question('', resolve))
-
     let bridgeAmount: bigint
-    if (amountAnswer.toLowerCase() === 'all') {
-        bridgeAmount = tokenBalance.balance
-    } else {
-        const amount = parseFloat(amountAnswer)
-        if (isNaN(amount) || amount <= 0) {
-            console.error('Invalid amount')
-            process.exit(1)
+    let destAddress: string
+
+    {
+        const rl = createReadlineInterface()
+        try {
+            console.log('')
+            console.log(`Available balance: ${parseFloat(ethers.formatUnits(tokenBalance.balance, tokenBalance.decimals)).toFixed(4)} ${selectedToken}`)
+            console.log('How much do you want to bridge? (enter amount or "all" for full balance):')
+            const amountAnswer: string = await new Promise(resolve => rl.question('', resolve))
+
+            if (amountAnswer.toLowerCase() === 'all') {
+                bridgeAmount = tokenBalance.balance
+            } else {
+                const amount = parseFloat(amountAnswer)
+                if (isNaN(amount) || amount <= 0) {
+                    console.error('Invalid amount')
+                    rl.close()
+                    process.exit(1)
+                }
+                bridgeAmount = ethers.parseUnits(amountAnswer, tokenBalance.decimals)
+                if (bridgeAmount > tokenBalance.balance) {
+                    console.error('Insufficient balance')
+                    rl.close()
+                    process.exit(1)
+                }
+            }
+
+            // Get destination address
+            console.log('')
+            console.log(`Enter destination address or leave blank for (${wallet!.address})`)
+            destAddress = await new Promise(resolve => rl.question('', resolve))
+            rl.close()
+
+            if (destAddress === '') {
+                destAddress = wallet!.address
+            }
+
+            if (!ethers.isAddress(destAddress)) {
+                console.error('Invalid address')
+                process.exit(1)
+            }
+        } catch (error) {
+            rl.close()
+            throw error
         }
-        bridgeAmount = ethers.parseUnits(amountAnswer, tokenBalance.decimals)
-        if (bridgeAmount > tokenBalance.balance) {
-            console.error('Insufficient balance')
-            process.exit(1)
-        }
-    }
-
-    // Get destination address
-    console.log('')
-    console.log(`Enter destination address or leave blank for (${wallet!.address})`)
-    let destAddress: string = await new Promise(resolve => rl.question('', resolve))
-
-    if (destAddress === '') {
-        destAddress = wallet!.address
-    }
-
-    if (!ethers.isAddress(destAddress)) {
-        console.error('Invalid address')
-        process.exit(1)
     }
 
     const DST_EID = isValidChain(toChain) ? eids[toChain] : 0;
@@ -246,11 +267,21 @@ async function bridgeCommand({ netuid, fromChain, toChain }: { netuid?: string, 
     const nativeFee = quote.nativeFee ?? quote[0];
     console.log("Native fee (wei):", nativeFee.toString());
 
-    console.log('')
-    console.log('Would you like to bridge tokens? (y/n)')
-    const bridgeAnswer = await new Promise(resolve => rl.question('', resolve))
-    if (bridgeAnswer !== 'y') {
-        process.exit(0)
+    {
+        const rl = createReadlineInterface()
+        try {
+            console.log('')
+            console.log('Would you like to bridge tokens? (y/n)')
+            const bridgeAnswer = await new Promise(resolve => rl.question('', resolve))
+            rl.close()
+
+            if (bridgeAnswer !== 'y') {
+                process.exit(0)
+            }
+        } catch (error) {
+            rl.close()
+            throw error
+        }
     }
 
     // 2) send
@@ -312,10 +343,17 @@ async function pollLayerZeroTxStatus(txHash: string, interval = 5000, maxAttempt
 }
 
 async function getAnswer(question: string, options: string[]) {
-    console.log(question)
-    options.forEach((option, idx) => console.log(`${idx + 1}: ${option}`))
-    const answer: string = await new Promise(resolve => rl.question('', resolve))
-    return options[parseInt(answer) - 1]
+    const rl = createReadlineInterface()
+    try {
+        console.log(question)
+        options.forEach((option, idx) => console.log(`${idx + 1}: ${option}`))
+        const answer: string = await new Promise(resolve => rl.question('', resolve))
+        rl.close()
+        return options[parseInt(answer) - 1]
+    } catch (error) {
+        rl.close()
+        throw error
+    }
 }
 
 export { bridgeCommand }
