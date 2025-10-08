@@ -44,6 +44,7 @@ coverage/
 .specstory/*
 
 *private-key*
+encryption-reminder.json
 # SpecStory explanation file
 .specstory/.what-is-this.md
 

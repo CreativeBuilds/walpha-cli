@@ -8,7 +8,10 @@ import {
     loadEncryptedKey,
     decryptPrivateKey,
     encryptPrivateKey,
-    saveEncryptedKey
+    saveEncryptedKey,
+    shouldPromptForEncryption,
+    markEncryptionDeclined,
+    clearEncryptionReminder
 } from './helpers/encryption'
 import { promptPassword, promptPasswordWithValidation } from './helpers/password'
 import inquirer from 'inquirer'
@@ -89,44 +92,53 @@ async function initWallet(): Promise<[Wallet, null] | [null, number]> {
         try {
             const wallet = new Wallet(keyOrPhrase)
 
-            // Prompt user to encrypt their plaintext wallet
-            console.log('\n⚠️  Your wallet is not encrypted. It is highly recommended to encrypt it for security.')
-            const { shouldEncrypt } = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'shouldEncrypt',
-                    message: 'Would you like to encrypt your wallet now?',
-                    default: true
-                }
-            ])
+            // Check if we should prompt for encryption (based on 24h reminder)
+            if (shouldPromptForEncryption()) {
+                // Prompt user to encrypt their plaintext wallet
+                console.log('\n⚠️  Your wallet is not encrypted. It is highly recommended to encrypt it for security.')
+                const { shouldEncrypt } = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'shouldEncrypt',
+                        message: 'Would you like to encrypt your wallet now?',
+                        default: true
+                    }
+                ])
 
-            if (shouldEncrypt) {
-                console.log('\nLet\'s set up encryption for your wallet.')
-                console.log('Password requirements:')
-                console.log('  - At least 8 characters')
-                console.log('  - At least one uppercase letter')
-                console.log('  - At least one lowercase letter')
-                console.log('  - At least one number\n')
+                if (shouldEncrypt) {
+                    console.log('\nLet\'s set up encryption for your wallet.')
+                    console.log('Password requirements:')
+                    console.log('  - At least 8 characters')
+                    console.log('  - At least one uppercase letter')
+                    console.log('  - At least one lowercase letter')
+                    console.log('  - At least one number\n')
 
-                try {
-                    const password = await promptPasswordWithValidation(
-                        'Set a password to encrypt your wallet:'
-                    )
+                    try {
+                        const password = await promptPasswordWithValidation(
+                            'Set a password to encrypt your wallet:'
+                        )
 
-                    // Backup plaintext file
-                    const backupPath = 'private-key.txt.backup.plaintext'
-                    fs.copyFileSync('private-key.txt', backupPath)
+                        // Backup plaintext file
+                        const backupPath = 'private-key.txt.backup.plaintext'
+                        fs.copyFileSync('private-key.txt', backupPath)
 
-                    // Encrypt and save
-                    const encryptedData = await encryptPrivateKey(keyOrPhrase, password)
-                    saveEncryptedKey('private-key.txt', encryptedData)
+                        // Encrypt and save
+                        const encryptedData = await encryptPrivateKey(keyOrPhrase, password)
+                        saveEncryptedKey('private-key.txt', encryptedData)
 
-                    console.log('\n✓ Wallet encrypted successfully!')
-                    console.log(`✓ Backup saved to ${backupPath}`)
-                    console.log('✓ You will need this password to access your wallet in the future.\n')
-                } catch (error) {
-                    console.error('\nFailed to encrypt wallet:', error)
-                    console.log('Continuing with unencrypted wallet...\n')
+                        // Clear reminder file after successful encryption
+                        clearEncryptionReminder()
+
+                        console.log('\n✓ Wallet encrypted successfully!')
+                        console.log(`✓ Backup saved to ${backupPath}`)
+                        console.log('✓ You will need this password to access your wallet in the future.\n')
+                    } catch (error) {
+                        console.error('\nFailed to encrypt wallet:', error)
+                        console.log('Continuing with unencrypted wallet...\n')
+                    }
+                } else {
+                    // User declined - mark it and show reminder message
+                    markEncryptionDeclined()
                 }
             }
 
@@ -195,42 +207,54 @@ async function generateNewWallet(): Promise<[Wallet, null] | [null, number]> {
                 console.log('New seed phrase generated')
             }
 
-            // Prompt for encryption
-            console.log('\nTo protect your wallet, it is highly recommended to encrypt it with a password.')
-            const { shouldEncrypt } = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'shouldEncrypt',
-                    message: 'Would you like to encrypt your wallet?',
-                    default: true
-                }
-            ])
+            // Check if we should prompt for encryption (based on 24h reminder)
+            if (shouldPromptForEncryption()) {
+                // Prompt for encryption
+                console.log('\nTo protect your wallet, it is highly recommended to encrypt it with a password.')
+                const { shouldEncrypt } = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'shouldEncrypt',
+                        message: 'Would you like to encrypt your wallet?',
+                        default: true
+                    }
+                ])
 
-            if (shouldEncrypt) {
-                console.log('\nPassword requirements:')
-                console.log('  - At least 8 characters')
-                console.log('  - At least one uppercase letter')
-                console.log('  - At least one lowercase letter')
-                console.log('  - At least one number\n')
+                if (shouldEncrypt) {
+                    console.log('\nPassword requirements:')
+                    console.log('  - At least 8 characters')
+                    console.log('  - At least one uppercase letter')
+                    console.log('  - At least one lowercase letter')
+                    console.log('  - At least one number\n')
 
-                try {
-                    const password = await promptPasswordWithValidation(
-                        'Set a password to encrypt your wallet:'
-                    )
+                    try {
+                        const password = await promptPasswordWithValidation(
+                            'Set a password to encrypt your wallet:'
+                        )
 
-                    // Encrypt and save
-                    const encryptedData = await encryptPrivateKey(keyOrPhrase, password)
-                    saveEncryptedKey('private-key.txt', encryptedData)
+                        // Encrypt and save
+                        const encryptedData = await encryptPrivateKey(keyOrPhrase, password)
+                        saveEncryptedKey('private-key.txt', encryptedData)
 
-                    console.log('\n✓ Wallet encrypted and saved to private-key.txt')
-                    console.log('✓ Keep your password safe - it cannot be recovered if lost!')
-                } catch (error) {
-                    console.error('\nFailed to encrypt wallet:', error)
-                    console.log('Saving wallet without encryption...')
+                        // Clear reminder file after successful encryption
+                        clearEncryptionReminder()
+
+                        console.log('\n✓ Wallet encrypted and saved to private-key.txt')
+                        console.log('✓ Keep your password safe - it cannot be recovered if lost!')
+                    } catch (error) {
+                        console.error('\nFailed to encrypt wallet:', error)
+                        console.log('Saving wallet without encryption...')
+                        fs.writeFileSync('private-key.txt', keyOrPhrase)
+                    }
+                } else {
+                    // Save without encryption
                     fs.writeFileSync('private-key.txt', keyOrPhrase)
+                    console.log('\n⚠️  Wallet saved without encryption to private-key.txt')
+                    // User declined - mark it and show reminder message
+                    markEncryptionDeclined()
                 }
             } else {
-                // Save without encryption
+                // Less than 24h have passed, skip encryption prompt and save plaintext
                 fs.writeFileSync('private-key.txt', keyOrPhrase)
                 console.log('\n⚠️  Wallet saved without encryption to private-key.txt')
             }

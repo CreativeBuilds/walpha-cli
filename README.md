@@ -32,28 +32,8 @@ cd walpha-cli
 # Install dependencies
 npm install
 
-# Build the project
-npm run build
 ```
 
-### Development mode
-
-```bash
-npm run dev -- <command>
-```
-
-### Build standalone executable
-
-```bash
-# macOS
-npm run build:mac
-
-# Windows
-npm run build:win
-
-# Both platforms
-npm run build:exe
-```
 
 ## Setup
 
@@ -76,7 +56,6 @@ word1 word2 word3 ... word12
 0x1234567890abcdef...
 ```
 
-**Security Warning**: Never commit `private-key.txt` to version control. Keep your private keys secure.
 
 ### 2. Wallet Encryption
 
@@ -381,11 +360,7 @@ walpha-cli/
 
 ### Scripts
 
-- `npm run build`: Compile TypeScript to JavaScript
-- `npm run dev`: Run in development mode with ts-node
-- `npm run cli`: Run CLI directly with bun (recommended for development)
-- `npm run clean`: Remove build artifacts
-- `npm start`: Run compiled CLI
+- `npm run cli`: Run CLI directly with bun
 
 ## Security
 

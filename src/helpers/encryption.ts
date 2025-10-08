@@ -163,3 +163,98 @@ export function saveEncryptedKey(filepath: string, data: EncryptedData): void {
         throw new Error(`Failed to save encrypted key: ${error}`)
     }
 }
+
+// Encryption Reminder Tracking
+// File to store when user last declined encryption
+const REMINDER_FILE = 'encryption-reminder.json'
+const REMINDER_INTERVAL_MS = 24 * 60 * 60 * 1000 // 24 hours
+
+interface EncryptionReminder {
+    lastDeclined: string // ISO 8601 timestamp
+}
+
+/**
+ * Loads encryption reminder data from file
+ */
+export function loadEncryptionReminder(): EncryptionReminder | null {
+    try {
+        if (!fs.existsSync(REMINDER_FILE)) {
+            return null
+        }
+
+        const content = fs.readFileSync(REMINDER_FILE, 'utf8')
+        const data = JSON.parse(content) as EncryptionReminder
+
+        // Validate structure
+        if (!data.lastDeclined || typeof data.lastDeclined !== 'string') {
+            return null
+        }
+
+        return data
+    } catch (error) {
+        // If file is corrupted or invalid, treat as if no reminder exists
+        return null
+    }
+}
+
+/**
+ * Saves current timestamp as the last declined time
+ */
+export function saveEncryptionReminder(): void {
+    try {
+        const reminderData: EncryptionReminder = {
+            lastDeclined: new Date().toISOString()
+        }
+        const jsonContent = JSON.stringify(reminderData, null, 2)
+        fs.writeFileSync(REMINDER_FILE, jsonContent, 'utf8')
+    } catch (error) {
+        // Fail silently - reminder tracking is not critical
+        console.warn('Warning: Failed to save encryption reminder')
+    }
+}
+
+/**
+ * Checks if we should prompt for encryption based on last declined time
+ * Returns true if more than 24 hours have passed or no reminder exists
+ */
+export function shouldPromptForEncryption(): boolean {
+    const reminder = loadEncryptionReminder()
+
+    // No reminder exists - should prompt
+    if (!reminder) {
+        return true
+    }
+
+    try {
+        const lastDeclined = new Date(reminder.lastDeclined)
+        const now = new Date()
+        const timeDiff = now.getTime() - lastDeclined.getTime()
+
+        // Should prompt if more than 24 hours have passed
+        return timeDiff >= REMINDER_INTERVAL_MS
+    } catch (error) {
+        // If timestamp is invalid, treat as if no reminder exists
+        return true
+    }
+}
+
+/**
+ * Marks encryption as declined and logs reminder message to user
+ */
+export function markEncryptionDeclined(): void {
+    saveEncryptionReminder()
+    console.log('\n💡 You will be reminded about wallet encryption again in 24 hours.\n')
+}
+
+/**
+ * Deletes the encryption reminder file (called after successful encryption)
+ */
+export function clearEncryptionReminder(): void {
+    try {
+        if (fs.existsSync(REMINDER_FILE)) {
+            fs.unlinkSync(REMINDER_FILE)
+        }
+    } catch (error) {
+        // Fail silently - this is cleanup
+    }
+}
