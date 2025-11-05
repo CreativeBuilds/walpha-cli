@@ -34,7 +34,6 @@ npm install
 
 ```
 
-
 ## Setup
 
 ### 1. Configure your wallet
